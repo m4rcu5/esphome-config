@@ -1,0 +1,10 @@
+---
+
+# Connect to MQTT server
+mqtt:
+  broker: !secret mqtt_broker
+
+  # Disable logging over MQTT
+  log_topic: null
+
+  discovery: true

@@ -1,0 +1,15 @@
+---
+
+# Connect to WiFi network
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+  # The SSID is hidden
+  fast_connect: true
+
+# Expose the WiFi signal strength
+sensor:
+  - platform: wifi_signal
+    name: "${friendly_name}: WiFi Signal"
+    update_interval: 120s

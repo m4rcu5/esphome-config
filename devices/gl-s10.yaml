@@ -1,0 +1,56 @@
+---
+
+# Device specific configuration for the GL.inet GL-S10 BLE Proxy
+# --------------------------------------------------------------
+
+esphome:
+  # Turn on power led when ESPHome boots
+  on_boot:
+    then:
+      - output.turn_on: power_led
+
+esp32:
+  board: esp32doit-devkit-v1
+  framework:
+    type: esp-idf
+
+# Configuration specific to V2.3 hardware revision
+ethernet:
+  type: IP101
+  mdc_pin: GPIO23
+  mdio_pin: GPIO18
+  clk_mode: GPIO0_IN
+  phy_addr: 1
+  power_pin: GPIO5
+
+# Network LED (white one) configured as status led
+status_led:
+  pin:
+    number: GPIO32
+    inverted: true
+
+# Button on the side labeled RESET
+binary_sensor:
+  - platform: gpio
+    pin:
+      number: GPIO33
+      inverted: true
+    name: "Reset Button"
+
+# Output settings for LED's marked Power and Bluetooth
+output:
+  - platform: gpio
+    pin: GPIO14
+    inverted: true
+    id: power_led
+
+  - platform: gpio
+    pin: GPIO12
+    inverted: true
+    id: bluetooth_led
+
+# Since these pins are broken out inside and labeled as I2C pins they're configured here
+i2c:
+  sda: 15
+  scl: 13
+  scan: true

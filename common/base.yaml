@@ -1,0 +1,31 @@
+---
+
+# Expose the node state
+binary_sensor:
+  - platform: status
+    name: "${friendly_name} Status"
+
+# Core configuration
+esphome:
+  name: ${name}
+  friendly_name: ${friendly_name}
+  name_add_mac_suffix: true
+
+# Enable logging
+logger: null
+
+# Enable Over-the-Air Updates
+ota: { platform: esphome }
+
+text_sensor:
+  # Expose a short ESPHome version
+  - platform: template
+    lambda: |-
+      auto state = id(esphome_version).state;
+      return state.substr(0, state.find(' '));
+    name: "${friendly_name}: ESPHome Version (Short)"
+
+  # Expose the full version string
+  - platform: version
+    id: esphome_version
+    name: "${friendly_name}: ESPHome Version"

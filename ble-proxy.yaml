@@ -1,0 +1,46 @@
+---
+
+# BLE gateway for the MiFlora sensors
+# -----------------------------------
+#
+# 80:EA:CA:88:B0:2E => Dypsis Lutescens
+# 80:EA:CA:88:B1:95 => Dracaena Fragrans
+
+substitutions:
+  name: gl-s10-bt-proxy
+  friendly_name: Bluetooth Proxy
+
+mqtt:
+  idf_send_async: true
+
+packages:
+  base:   !include common/base.yaml
+  device: !include devices/gl-s10.yaml
+  mqtt:   !include common/mqtt.yaml
+
+  miflora-1: !include
+    file: sensors/hhccjcy01.yaml
+    vars:
+      flower_care_mac: "80:EA:CA:88:B0:2E"
+      flower_care_id_prefix: dypsis_lutescens
+      flower_care_friendly_name: Dypsis Lutescens
+
+  miflora-2: !include
+    file: sensors/hhccjcy01.yaml
+    vars:
+      flower_care_mac: "80:EA:CA:88:B1:95"
+      flower_care_id_prefix: dracaena_fragrans
+      flower_care_friendly_name: Dracaena Fragrans
+
+# Enable passive BLE tracking
+esp32_ble_tracker:
+  scan_parameters:
+    active: false
+
+  # Bluetooth LED blinks when receiving Bluetooth advertising
+  on_ble_advertise:
+    then:
+      - output.turn_on: bluetooth_led
+      - delay: 0.5s
+      - output.turn_off: bluetooth_led
+

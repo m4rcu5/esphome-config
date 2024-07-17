@@ -1,0 +1,63 @@
+---
+
+# Variables
+# ---------
+#
+# flower_care_mac:            MAC address
+# flower_care_id_prefix:      ID name prefix
+# flower_care_friendly_name:  Human readable name of the plant
+
+# This implementation depends on the myhomeiot BLE component
+external_components:
+  - source: github://myhomeiot/esphome-components
+
+# Empty BLE host to aggregate the clients
+myhomeiot_ble_host: null
+
+# BLE client to poll battery info once every 24h
+myhomeiot_ble_client:
+  - mac_address: ${flower_care_mac}
+    service_uuid: '1204'
+    characteristic_uuid: '1A02'
+    update_interval: 24h
+    on_value:
+      then:
+        lambda: |-
+          if (x.size() < 2)
+          {
+            ESP_LOGE("myhomeiot_ble_client", "payload has wrong size (%d)", x.size());
+            return;
+          };
+          id(${flower_care_id_prefix}_battery).publish_state(x[0]);
+
+          std::string firmware(x.begin(), x.end());
+          id(${flower_care_id_prefix}_firmware).publish_state(firmware.substr(2));
+
+sensor:
+  # Xiaomi Flower Case sensor
+  - platform: xiaomi_hhccjcy01
+    mac_address: ${flower_care_mac}
+    temperature:
+      name: ${flower_care_friendly_name} Temperature
+    moisture:
+      name: ${flower_care_friendly_name} Moisture
+    illuminance:
+      name: ${flower_care_friendly_name} Illuminance
+    conductivity:
+      name: ${flower_care_friendly_name} Soil Conductivity
+
+  # Expose the battery percentage obtained by the scan
+  - platform: template
+    id: ${flower_care_id_prefix}_battery
+    name: ${flower_care_friendly_name} Battery
+    device_class: battery
+    unit_of_measurement: '%'
+    state_class: measurement
+    accuracy_decimals: 0
+
+text_sensor:
+  # Expose the firmware version of the device
+  - platform: template
+    id: ${flower_care_id_prefix}_firmware
+    name: ${flower_care_friendly_name} Firmware
+    icon: mdi:new-box
