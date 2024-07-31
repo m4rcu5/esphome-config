@@ -10,6 +10,9 @@ substitutions:
   # Time between writes to flash
   write_interval: 5min
 
+  # When idle, repeat the current values over MQTT
+  publish_interval: 60s
+
 packages:
   base:   !include common/base.yaml
   mqtt:   !include common/mqtt.yaml
@@ -36,7 +39,7 @@ esphome:
   on_boot:
     # Restore the saved pulsecount to the running pulse_meter
     - pulse_meter.set_total_pulses:
-        id: watermeter_flow # Needs to reference the parent sensor
+        id: int_watermeter_flow # Needs to reference the parent sensor
         value: !lambda 'return id(total_pulses);'
 
 # Enable the LED
@@ -51,7 +54,7 @@ mqtt:
     - topic: ${name}/set_water_usage
       then:
         - pulse_meter.set_total_pulses:
-            id: watermeter_flow # Needs to reference the parent sensor
+            id: int_watermeter_flow # Needs to reference the parent sensor
             value: !lambda 'return atof(x.c_str()) * ( 1.0 / ${pulse_multiplier} );'
         - logger.log:
             format: "The total pulse count has been set to: %d"
@@ -60,7 +63,8 @@ mqtt:
 sensor:
   # Measure the flow of water
   - platform: pulse_meter
-    id: watermeter_flow
+    id: int_watermeter_flow
+    internal: true
 
     internal_filter_mode: "PULSE"
     internal_filter: 50ms
@@ -75,23 +79,44 @@ sensor:
       - multiply: ${pulse_multiplier}
       - multiply: 1000
 
+    on_value:
+      - lambda: id(watermeter_flow).publish_state(x);
+
+    # Keep a running total of used water
+    total:
+      id: int_watermeter_total
+      internal: true
+
+      filters:
+        - multiply: ${pulse_multiplier}
+      on_raw_value:
+        # Write every increment to the global variable
+        - lambda: id(total_pulses) = x;
+      on_value:
+        - lambda: id(watermeter_total).publish_state(x);
+
+  # Expose the flowrate on a regular interval
+  - platform: template
+    id: watermeter_flow
+    update_interval: ${publish_interval}
+
+    lambda: return id(int_watermeter_flow).state;
+
     name: Watermeter Flow
     unit_of_measurement: "l/min"
     state_class: measurement
     accuracy_decimals: 1
     icon: "mdi:water-pump"
 
-    # Keep a running total of used water
-    total:
-      id: watermeter_total
-      filters:
-        - multiply: ${pulse_multiplier}
-      on_raw_value:
-        # Write every increment to the global variable
-        - lambda: id(total_pulses) = x;
-      name: Watermeter Total
-      state_class: total_increasing
-      unit_of_measurement: "m³"
-      accuracy_decimals: 3
-      icon: "mdi:water"
+  # Expose the running total on a regular interval
+  - platform: template
+    id: watermeter_total
+    update_interval: ${publish_interval}
 
+    lambda: return id(int_watermeter_total).state;
+
+    name: Watermeter Total
+    state_class: total_increasing
+    unit_of_measurement: "m³"
+    accuracy_decimals: 3
+    icon: "mdi:water"
