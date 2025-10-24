@@ -7,4 +7,6 @@ mqtt:
   # Disable logging over MQTT
   log_topic: null
 
+  # Enable classic MQTT discovery
   discovery: true
+  discover_ip: false
