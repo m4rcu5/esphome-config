@@ -39,21 +39,36 @@ sensor:
     mac_address: ${flower_care_mac}
     temperature:
       name: ${flower_care_friendly_name} Temperature
+      on_value:
+        - script.execute: ${flower_care_id_prefix}_sensor_update_timer
     moisture:
       name: ${flower_care_friendly_name} Moisture
+      on_value:
+        - script.execute: ${flower_care_id_prefix}_sensor_update_timer
     illuminance:
       name: ${flower_care_friendly_name} Illuminance
+      on_value:
+        - script.execute: ${flower_care_id_prefix}_sensor_update_timer
     conductivity:
       name: ${flower_care_friendly_name} Soil Conductivity
+      on_value:
+        - script.execute: ${flower_care_id_prefix}_sensor_update_timer
+
+  # Expose the bluetooth signal strength
+  - platform: ble_rssi
+    mac_address: ${flower_care_mac}
+    id: ${flower_care_id_prefix}_signal
+    name: ${flower_care_friendly_name} Signal
 
   # Expose the battery percentage obtained by the scan
   - platform: template
     id: ${flower_care_id_prefix}_battery
     name: ${flower_care_friendly_name} Battery
-    device_class: battery
     unit_of_measurement: '%'
-    state_class: measurement
     accuracy_decimals: 0
+    device_class: battery
+    state_class: measurement
+    entity_category: diagnostic
 
 text_sensor:
   # Expose the firmware version of the device
@@ -61,3 +76,46 @@ text_sensor:
     id: ${flower_care_id_prefix}_firmware
     name: ${flower_care_friendly_name} Firmware
     icon: mdi:new-box
+    retain: true
+
+  # Expose the ISO8601 timestamp of last contact
+  - platform: template
+    id: ${flower_care_id_prefix}_last_measurement
+    name: "${flower_care_friendly_name} Last Measurement"
+    device_class: timestamp
+    entity_category: diagnostic
+    update_interval: never
+
+  # Expose the availability sensor (Online / Offline)
+  - platform: template
+    id: ${flower_care_id_prefix}_availability
+    name: "${flower_care_friendly_name} Availability"
+    entity_category: diagnostic
+    update_interval: never
+    retain: true
+
+# Timestamp and availability logic
+script:
+  - id: ${flower_care_id_prefix}_sensor_update_timer
+    mode: restart
+    then:
+      - lambda: |-
+          // Mark available
+          id(${flower_care_id_prefix}_availability).publish_state("online");
+
+          // Update last measurement timestamp
+          auto t = id(sntp_time).now();
+          char buf[32];
+          t.strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ");
+          id(${flower_care_id_prefix}_last_measurement).publish_state(std::string(buf));
+
+      # Restart offline timeout
+      - script.execute: ${flower_care_id_prefix}_offline_timer
+
+  - id: ${flower_care_id_prefix}_offline_timer
+    mode: restart
+    then:
+      - delay: 21600s  # 6 hours inactivity timeout
+      - logger.log: "Sensor considered offline"
+      - lambda: |-
+          id(${flower_care_id_prefix}_availability).publish_state("offline");
